@@ -8,8 +8,8 @@
 
 ## Methods
 
-[ ] function balanceOf(address \_owner) external view returns (uint256);
-[ ] function ownerOf(uint256 \_tokenId) external view returns (address);
+[x] function balanceOf(address \_owner) external view returns (uint256);
+[x] function ownerOf(uint256 \_tokenId) external view returns (address);
 [ ] function safeTransferFrom(address \_from, address \_to, uint256 \_tokenId, bytes data) external payable;
 [ ] function safeTransferFrom(address \_from, address \_to, uint256 \_tokenId) external payable;
 [ ] function transferFrom(address \_from, address \_to, uint256 \_tokenId) external payable;
@@ -18,6 +18,8 @@
 [ ] function getApproved(uint256 \_tokenId) external view returns (address);
 [ ] function isApprovedForAll(address \_owner, address \_operator) external view returns (bool);
 [ ] function supportsInterface(bytes4 interfaceID) external view returns (bool); (from ERC165 – Optional)
+
+[x] function mint(address to) public returns (uint256 tokenId)
 
 ## Notes
 

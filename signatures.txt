@@ -11,3 +11,6 @@ ceth util keccak "getApproved(uint256)" | grep -E -o "^.{8}"
 0x081812fc -> getApproved(uint256)
 0xe985e9c5 -> isApprovedForAll(address,address)
 0x01ffc9a7 -> supportsInterface(bytes4)
+
+-- extention 
+0x6a627842 -> mint(address)
