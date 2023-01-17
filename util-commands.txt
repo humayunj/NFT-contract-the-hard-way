@@ -1,0 +1,1 @@
+ceth contract call --account=key1 "mint(address)" $key   
