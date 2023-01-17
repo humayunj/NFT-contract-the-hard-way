@@ -7,7 +7,7 @@ object "NFT" {
     object "runtime"{
         code {
             // abi compatibilty
-            switch shr(0xe0,calldataload(0))
+            switch shr(0xe0,calldataload(0x0))
             case 0x70a08231 {
                 /// function balanceOf(address _owner) external view returns (uint256); 
                 
@@ -58,8 +58,27 @@ object "NFT" {
                 returnUint(mint(calldataload(0x4)))
             }
 
+            case 0x23b872dd {
+                // function transferFrom(address _from, address _to, uint256 _tokenId) external payable;
+                transferFrom(calldataload(0x4),calldataload(0x24),calldataload(0x44))
+            }
+
+            case 0x42842e0e {
+                // function safeTransferFrom(address _from, address _to, uint256 _tokenId) external payable;
+                safeTransferFromWithData(calldataload(0x4),calldataload(0x24),calldataload(0x44),0x0)
+            }
+            case 0xb88d4fde {
+                // function safeTransferFrom(address _from, address _to, uint256 _tokenId, bytes data) external payable;
+                // p.s there's another, quicker way too
+                let numberOfBytes := calldataload(0x64)
+                // let length := sub(calldatasize(),0x64)
+                calldatacopy(0x84,0x84,numberOfBytes)
+                safeTransferFromWithData(calldataload(0x4),calldataload(0x24),calldataload(0x44),numberOfBytes)
+            }
+
             default {
-                revert (0,0)
+                mstore(0,0x404)
+                revert(0,0x20)                
             }
 
             //---------------------
@@ -75,7 +94,7 @@ object "NFT" {
                 
                 tokenId := counterIncreament()
                 sstore(offsetTokenToAddress(tokenId),to)
-                increamentBalance(to)
+                balanceIncreament(to)
                 // emit event
             }
 
@@ -103,11 +122,11 @@ object "NFT" {
             function approve(addr,tokenId) {
 
                 require(iszero(eq(ownerOf(tokenId),0x0)))
-
                 
                 require(_isCallerAuthorizedForToken(tokenId))
                 
                 sstore(offsetTokenToApproved(tokenId),addr)
+
 
             }
 
@@ -123,25 +142,33 @@ object "NFT" {
                 approved := _isOperatorApprovedForAll(owner,operator)
             }
 
-            function _isCallerAuthorizedForToken(tokenId) -> isAuthorized {
-                let _caller := caller()
+            function transferFrom( from,  to,  tokenId) {
+                require(iszero(eq(to,0x0))) // can't transfer to 0 address
+                let owner:= ownerOf(tokenId)
+                require(iszero(eq(owner,0x0))) // valid nft
+                require(_isCallerAuthorizedForToken(tokenId))
+                _transferOwnership(owner,to,tokenId)
+            }
+
+            // @read-plz: the data must be placed at 0x64 to data Length         
+            function safeTransferFromWithData( from,  to,  tokenId,datalength)  {
+                require(iszero(eq(to,0x0)))
                 let owner := ownerOf(tokenId)
-                
-                isAuthorized := or( or( eq(_caller,owner), eq(_isOperatorApprovedForAll(owner,_caller),1) ), eq(_caller,getApproved(tokenId)) )
-            }
-            function _isCallerAuthorizedForAll(owner) -> isAuthorized {
-                let _caller := caller()
-                
-                isAuthorized := or(eq(_caller,owner), eq(_isOperatorApprovedForAll(owner,_caller),1))
-            }
+                require(iszero(eq(owner,0x0))) // valid nft
+                require(_isCallerAuthorizedForToken(tokenId))
 
-            function _isOperatorApprovedForAll(user,operator) -> approved {
-                approved := sload( offsetApproveForAll(user,operator)) // approved = True if 1 or False if 0
+                _transferOwnership(owner,to,tokenId)
+                
+                switch _isContract(to) 
+                    case 0 {
+                        // happy ever after
+                    }
+                    case 1 {
+                        // eternal pain
+                        _callOnRecevied(from,owner,to,tokenId,datalength)
+                    }
+                
             }
-         
-
-            
-           
 
             //----------------------
             /** Storage Offsets */
@@ -193,8 +220,8 @@ object "NFT" {
             }
             function require(x) {
                 if iszero(x) {
-                    let magic := 0xCafeBabe // (0,0)
-                    mstore(0,magic)
+                    let pickUpLine := 0xCafeBabe // (0,0)
+                    mstore(0,pickUpLine)
                     revert(0,0x20)
                 }
             }
@@ -205,11 +232,63 @@ object "NFT" {
                 val:= sload(0x20)
                 sstore(0x20,add(val,1))
             }
-            function increamentBalance(owner){
+            function balanceIncreament(owner){
                 let offset := offsetOwnerToBalance(owner)
                 sstore(offset,add(sload(offset),1))
             }
-            
+            function balanceDecreament(owner){
+                let offset := offsetOwnerToBalance(owner)
+                sstore(offset,sub(sload(offset),1))
+            }
+
+
+            function _isCallerAuthorizedForToken(tokenId) -> isAuthorized {
+                let _caller := caller()
+                let owner := ownerOf(tokenId)
+                
+                isAuthorized := or( or( eq(_caller,owner), eq(_isOperatorApprovedForAll(owner,_caller),1) ), eq(_caller,getApproved(tokenId)) )
+            }
+            function _isCallerAuthorizedForAll(owner) -> isAuthorized {
+                let _caller := caller()
+                
+                isAuthorized := or(eq(_caller,owner), eq(_isOperatorApprovedForAll(owner,_caller),1))
+            }
+
+            function _isOperatorApprovedForAll(user,operator) -> approved {
+                approved := sload( offsetApproveForAll(user,operator)) // approved = True if 1 or False if 0
+            }
+            function _isContract(addr) -> flag {
+                flag := gt(extcodesize(addr),0) 
+            }
+            function _transferOwnership(from,to,tokenId) {
+                sstore(offsetTokenToApproved(tokenId),0x0) // remove approved
+                sstore(offsetTokenToAddress(tokenId),to) // change ownership
+                
+                balanceDecreament(from) // decrease prev owner blnc
+                balanceIncreament(to) // increase new owner balance
+            }
+
+            // @notice-plz: the data must be placed at 0x64 to dataLength
+            function _callOnRecevied(from,owner,to,tokenId,dataLength) {
+                //  function onERC721Received(address _operator, address _from, uint256 _tokenId, bytes _data) external returns(bytes4);
+                let magic := 0x150b7a02
+
+                mstore(0x0,shl(0xe0,magic)) // append 32 bits, I know! -_-
+                let testb:= mload(0x0)
+               
+                mstore(0x4,from)
+                mstore(0x24,owner)
+                mstore(0x44,tokenId)
+                mstore(0x64,dataLength)
+                let argsLength := add(0x84,dataLength)
+                let success := call(gas(),to,0x0,0x0,argsLength,0,0)
+                require(eq(success,1))
+
+                returndatacopy(0,0,0x20) // just single slot
+
+                require(eq(mload(0x0),magic))
+                
+            }
         }
     }
 }

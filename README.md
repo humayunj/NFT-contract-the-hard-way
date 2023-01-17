@@ -15,8 +15,8 @@ As James said in the intro of The End of the F\*\*\*ing World. **_"I wanted to m
 - [x] function balanceOf(address \_owner) external view returns (uint256);
 - [x] function ownerOf(uint256 \_tokenId) external view returns (address);
 - [ ] function safeTransferFrom(address \_from, address \_to, uint256 \_tokenId, bytes data) external payable;
-- [ ] function safeTransferFrom(address \_from, address \_to, uint256 \_tokenId) external payable;
-- [ ] function transferFrom(address \_from, address \_to, uint256 \_tokenId) external payable;
+- [x] function safeTransferFrom(address \_from, address \_to, uint256 \_tokenId) external payable;
+- [x] function transferFrom(address \_from, address \_to, uint256 \_tokenId) external payable;
 - [x] function approve(address \_approved, uint256 \_tokenId) external payable;
 - [x] function setApprovalForAll(address \_operator, bool \_approved) external;
 - [x] function getApproved(uint256 \_tokenId) external view returns (address);
@@ -25,6 +25,11 @@ As James said in the intro of The End of the F\*\*\*ing World. **_"I wanted to m
 
 - [x] function mint(address to) public returns (uint256 tokenId)
 
+## ERC-721-Receiver
+
+- [x] function onERC721Received(address \_operator, address \_from, uint256 \_tokenId, bytes \_data) external returns(bytes4)
+
 ### Notes
 
 Minting is not specified in EIP, so there's no standard for it.
+Encoding of dynamic types slightly differs from static types ( to be used in safeTransferFrom with bytes )
