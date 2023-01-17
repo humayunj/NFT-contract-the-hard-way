@@ -1,4 +1,8 @@
-# ERC-721 Checklist
+# ERC-721 The Hard Way
+
+## Why?
+
+As James said in the intro of The End of the F\*\*\*ing World. **_"I wanted to make myself feel something."_**
 
 ## Events
 
@@ -21,6 +25,6 @@
 
 - [x] function mint(address to) public returns (uint256 tokenId)
 
-## Notes
+### Notes
 
-Minting and burning is not specified in EIP
+Minting is not specified in EIP, so there's no standard for it.
