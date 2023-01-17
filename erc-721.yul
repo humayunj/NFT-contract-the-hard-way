@@ -181,7 +181,7 @@ object "NFT" {
                 mstore(0x0,user)
                 mstore(0x20,operator)
                 mstore(0x40,user)
-                offset := keccak256(0,0x40)
+                offset := keccak256(0,0x60)
             }
           
             
