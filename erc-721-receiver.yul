@@ -13,7 +13,8 @@ object "TokenReceiver" {
                 // [4][20][20][20][20][..data]
                 // 4+20+20+20+20
 
-                let payload:=calldataload(0x84) // to test
+                let dataOffset := calldataload(0x64)
+                let payload:=calldataload(add(0x24,dataOffset)) // first slot of bytes data
                 let magic := 0x150b7a02
                 mstore(0,magic)
                 return(0,0x20)

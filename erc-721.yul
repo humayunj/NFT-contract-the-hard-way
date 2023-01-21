@@ -49,23 +49,29 @@ object "NFT" {
                 
                 returnUint(isApprovedForAll(calldataload(0x4),calldataload(0x24))) 
                 /// bruh! Trust me, return value would be bool
+
             }
 
-            case 0x6a627842 {
+            case 0x40c10f19 {
                 /// Non-EIP
-                /// function mint(address to) public returns (uint256 tokenId)
+                /// function mint(address to,uint256 tokenId) external returns (uint256 tokenId)
                 
-                returnUint(mint(calldataload(0x4)))
+                mint(calldataload(0x4),calldataload(0x24))
+                return (0x0,0x0)
             }
 
             case 0x23b872dd {
                 // function transferFrom(address _from, address _to, uint256 _tokenId) external payable;
                 transferFrom(calldataload(0x4),calldataload(0x24),calldataload(0x44))
+                return (0x0,0x0)
+                
             }
 
             case 0x42842e0e {
                 // function safeTransferFrom(address _from, address _to, uint256 _tokenId) external payable;
                 safeTransferFromWithData(calldataload(0x4),calldataload(0x24),calldataload(0x44),0x0)
+                return (0x0,0x0)
+            
             }
             case 0xb88d4fde {
                 // function safeTransferFrom(address _from, address _to, uint256 _tokenId, bytes data) external payable;
@@ -74,38 +80,48 @@ object "NFT" {
                 // let length := sub(calldatasize(),0x64)
                 calldatacopy(0x84,0x84,numberOfBytes)
                 safeTransferFromWithData(calldataload(0x4),calldataload(0x24),calldataload(0x44),numberOfBytes)
+                return(0x0,0x0)
+            
             }
 
             default {
-                mstore(0,0x404)
-                revert(0,0x20)                
+                // mstore(0,0x404)
+                // revert(0,0x20) 
+                revertABI()               
             }
-
+ 
             //---------------------
             /** Methods */
             function balanceOf(owner) -> blnc {
+                require(iszero(eq(owner,0x0)))
                 blnc := sload(offsetOwnerToBalance(owner))
             }
             function ownerOf(tokenId) -> owner {
-                owner := sload(offsetTokenToAddress(tokenId))
+                let t := sload(offsetTokenToAddress(tokenId))
+                require(iszero(eq(t,0x0)))                
+                owner := t
             }
 
-            function mint(to) -> tokenId {
-                
-                tokenId := counterIncreament()
+            function mint(to,tokenId) {
+                require(iszero(eq(to,0x0))) // seriously -_-
+                require(eq(sload(offsetContractOwner()),caller())) // only contract owner can mint
+                require(eq(sload(offsetTokenToAddress(tokenId)),0x0)) // no stealing
+
+                // tokenId := counterIncreament()
+                let _ := counterIncreament()
                 sstore(offsetTokenToAddress(tokenId),to)
                 balanceIncreament(to)
-                // emit event
+                emitTransfer(0x0,to,tokenId) // null address to new owner
             }
 
 
             function supportsInterface(interface) -> supports {
                 
-                switch interface 
+                switch shr(0xe0,interface) 
                 case 0x80ac58cd {
                     supports := 1
                 }
-                case 0x01ffc9a7 {
+                case 0x01ffc9a7 {   
                     supports := 1
                 }
                 default {
@@ -126,8 +142,7 @@ object "NFT" {
                 require(_isCallerAuthorizedForToken(tokenId))
                 
                 sstore(offsetTokenToApproved(tokenId),addr)
-
-
+                emitApproval(ownerOf(tokenId),addr,tokenId)
             }
 
 
@@ -137,6 +152,7 @@ object "NFT" {
                 require(_isCallerAuthorizedForAll(owner))
 
                 sstore(offsetApproveForAll(owner,operator),approved)
+                emitApprovalForAll(owner,operator,approved)
             }
             function isApprovedForAll(owner,operator) -> approved {
                 approved := _isOperatorApprovedForAll(owner,operator)
@@ -220,9 +236,10 @@ object "NFT" {
             }
             function require(x) {
                 if iszero(x) {
-                    let pickUpLine := 0xCafeBabe // (0,0)
-                    mstore(0,pickUpLine)
-                    revert(0,0x20)
+                    // let pickUpLine := 0xCafeBabe // (0,0)
+                    // mstore(0,pickUpLine)
+                    // revert(0,0x20)
+                    revertABI()
                 }
             }
             function counterValue() -> val {
@@ -266,6 +283,7 @@ object "NFT" {
                 
                 balanceDecreament(from) // decrease prev owner blnc
                 balanceIncreament(to) // increase new owner balance
+                emitTransfer(from,to,tokenId)
             }
 
             // @notice-plz: the data must be placed at 0x64 to dataLength
@@ -279,15 +297,47 @@ object "NFT" {
                 mstore(0x4,from)
                 mstore(0x24,owner)
                 mstore(0x44,tokenId)
-                mstore(0x64,dataLength)
-                let argsLength := add(0x84,dataLength)
+                let dataOffset := mul(0x4,0x20) // API-spec ( no including first 4 bytes)
+                mstore(0x64,dataOffset)
+                mstore(0x84,dataLength)
+                let argsLength := add(0x104,dataLength)
                 let success := call(gas(),to,0x0,0x0,argsLength,0,0)
                 require(eq(success,1))
 
                 returndatacopy(0,0,0x20) // just single slot
 
-                require(eq(mload(0x0),magic))
+                require(eq(shr(0xe0, mload(0x0)),magic))
                 
+            }
+            function emitTransfer(from,to,tokenId){
+                // event Transfer(address indexed _from, address indexed _to, uint256 indexed _tokenId);
+                log4(0,0,
+                    0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef,
+                    from,
+                    to,
+                    tokenId
+                )                
+            }
+            function emitApproval(owner,approved,tokenId){
+                /// event Approval(address indexed _owner, address indexed _approved, uint256 indexed _tokenId);
+                log4(0,0,
+                    0x8c5be1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b925,
+                    owner,approved,tokenId
+                )
+            }
+            function emitApprovalForAll(owner, operator, approved){
+            //  event ApprovalForAll(address indexed _owner, address indexed _operator, bool _approved);
+                log4(0,0,
+                    0x17307eab39ab6107e8899845ad3d59bd9653f200f220920489ca2b5937696c31,
+                    owner,operator,approved
+                )
+            }
+            function revertABI() {
+                mstore(0x0,shl(0xe0,0x08c379a0)) // Error(string)
+                mstore(0x4,0x20) // start of the data
+                mstore(0x24,0x4) // length of data
+                mstore(0x44,shl(0xe0,0x6f6f7073))
+                revert(0,0x64) // 32 padded
             }
         }
     }
