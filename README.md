@@ -1,9 +1,5 @@
 # ERC-721 The Hard Way
 
-## Why?
-
-As James said in the intro of The End of the F\*\*\*ing World. **_"I wanted to make myself feel something."_**
-
 ## Events
 
 - [x] event Transfer(address indexed \_from, address indexed \_to, uint256 indexed \_tokenId);
